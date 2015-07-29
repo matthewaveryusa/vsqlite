@@ -89,6 +89,7 @@ int env_xFilter(sqlite3_vtab_cursor* pCursor, int idxNum, const char *idxStr, in
   env_table_t *table = (env_table_t*) pCursor->pVtab;
   env_cursor_t *cursor = (env_cursor_t*) pCursor;
 
+  //length of a 64 bit int in characters
   int max_pid_len = 20;
   int environ_path_len = sizeof("/proc//environ") + max_pid_len;
   char* environ_path = malloc(environ_path_len);
