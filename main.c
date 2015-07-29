@@ -42,7 +42,7 @@ int main(int argc, char **argv){
 
   char default_query[] = "SELECT * from env";
   char* query = default_query;
-  if(argc < 1) {
+  if(argc > 1) {
     query = argv[1];
   }
   printf("query: %s\n",query);

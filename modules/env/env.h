@@ -1,15 +1,16 @@
 #ifndef ENV_H
 #define ENV_H
 
-typedef struct envvar{
+typedef struct env{
+  int pid;
   char* name;
-  int name_size;
+  int name_len;
   char* value;
-  int value_size;
-} envvar_t;
+  int value_len;
+} env_t;
 
-void envvar_init(void *v, const char* blob);
-void envvar_release(void *v);
-void envvar_print(void *v);
+void env_init(void *v, int pid, const char* blob);
+void env_release(void *v);
+void env_print(void *v);
 
 #endif

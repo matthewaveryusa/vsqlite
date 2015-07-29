@@ -1,13 +1,19 @@
-#include <sqlite3_env.h>
+#include <modules/env/sqlite3_env.h>
 
-#include <env.h>
-#include <vector.h>
+#include <modules/env/env.h>
+#include <tools/vector.h>
+
 #include <sqlite3.h>
+
 #include <stdlib.h>
 #include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include <dirent.h>
+#include <sys/types.h>
 
-extern char **environ;
 int(*env_sqlite3_setters[])(sqlite3_vtab_cursor*, sqlite3_context*) = {
+  env_sqlite3_pid,
   env_sqlite3_name,
   env_sqlite3_value
 };
@@ -37,12 +43,12 @@ sqlite3_module env_module = {
 };
 
 int env_xCreate(sqlite3* db, void *pAux, int argc, const char *const*argv, sqlite3_vtab **ppVTab, char **pzErr){
-  static char query[] = "CREATE TABLE env(key TEXT, value TEXT)";
+  static char query[] = "CREATE TABLE env(pid INT, key TEXT, value TEXT)";
   env_table_t *table = (env_table_t*) malloc(sizeof(env_table_t));
   if(!table) {
     return SQLITE_ERROR;
   }
-  table->content = vec_new(sizeof(envvar_t),10);
+  table->content = vec_new(sizeof(env_t),10);
   *ppVTab = (sqlite3_vtab*) table;
   int rc = sqlite3_declare_vtab(db, query);
   if (rc != SQLITE_OK) {
@@ -57,7 +63,7 @@ int env_xBestIndex(sqlite3_vtab *pVTab, sqlite3_index_info* index_info){
 
 int env_xDestroy(sqlite3_vtab *pVTab){
   env_table_t* table = (env_table_t*) pVTab;
-  vec_delete_elems(table->content,envvar_release);
+  vec_delete_elems(table->content,env_release);
   vec_delete(table->content);
   free(pVTab);
   return SQLITE_OK;
@@ -79,15 +85,76 @@ int env_xClose(sqlite3_vtab_cursor* cursor){
 }
 
 int env_xFilter(sqlite3_vtab_cursor* pCursor, int idxNum, const char *idxStr, int argc, sqlite3_value **argv){
- env_table_t *table = (env_table_t*) pCursor->pVtab;
- env_cursor_t *cursor = (env_cursor_t*) pCursor;
- char *s = *environ;
- int i;
- for(i = 0;s; i++) {
-   void *envvar = vec_push_back_uninitialized(table->content,sizeof(envvar_t));
-   envvar_init(envvar,s);
-   s = *(environ+i+1);
- }
+  env_table_t *table = (env_table_t*) pCursor->pVtab;
+  env_cursor_t *cursor = (env_cursor_t*) pCursor;
+
+  FILE *fp = fopen("/proc/sys/kernel/pid_max","r");
+  if(!fp) { return SQLITE_ERROR; }
+  fseek(fp, 0L, SEEK_END);
+  int max_pid_len = ftell(fp);
+  fclose(fp);
+  int environ_path_len = sizeof("/proc//environ") + max_pid_len;
+  char* environ_path = malloc(environ_path_len);
+  if(!environ_path) { return SQLITE_ERROR; }
+
+  struct dirent *ep;
+  DIR *dir = opendir ("/proc");
+  if (dir == NULL) { return SQLITE_ERROR; }
+  while( (ep = readdir(dir)) ) {
+    int pid = atoi(ep->d_name);
+    if(pid == 0) { continue; }
+    assert(strlen(ep->d_name) < environ_path_len);
+    environ_path[0] = '\0';
+    strcat(environ_path,"/proc/");
+    strcat(environ_path,ep->d_name);
+    strcat(environ_path,"/environ");
+    fp = fopen(environ_path,"r");
+    free(environ_path);
+    if(!fp) { continue; }
+    typedef enum state { KEY, VALUE} state;
+    char c;
+    state s = KEY;
+    void * temp = vec_new(1,10);
+    char *t;
+    env_t *env;
+    while ( (c = fgetc(fp)) != EOF) {
+      switch (s) {
+        case KEY:
+          if(c == '=') {
+            env = (env_t*) vec_push_back_uninitialized(table->content,sizeof(env_t));
+            env->pid = pid;
+            env->name_len = vec_length(temp);
+            t = vec_push_back_uninitialized(temp,1);
+            *t = '\0';
+            env->name = strdup(vec_get(temp,0));
+            s = VALUE;
+            vec_delete(temp);
+            temp = vec_new(1,10);
+          } else {
+            t = vec_push_back_uninitialized(temp,1);
+            *t = c;
+          }
+          break;
+        case VALUE:
+          if(c == '\0') {
+            env->value_len = vec_length(temp);
+            t = vec_push_back_uninitialized(temp,1);
+            *t = '\0';
+            env->value = strdup(vec_get(temp,0));
+            s = KEY;
+            vec_delete(temp);
+            temp = vec_new(1,10);
+          } else {
+            t = vec_push_back_uninitialized(temp,1);
+            *t = c;
+          }
+          break;
+      }
+    }
+    vec_delete(temp);
+    fclose(fp);
+  }
+  closedir(dir);
   return SQLITE_OK;
 }
 
@@ -103,19 +170,27 @@ int env_xEof(sqlite3_vtab_cursor* pCursor){
  return cursor->row >= vec_length(table->content);
 }
 
+int env_sqlite3_pid(sqlite3_vtab_cursor* pCursor, sqlite3_context *ctx) {
+  env_cursor_t *cursor = (env_cursor_t*) pCursor;
+  env_table_t *table = (env_table_t*) pCursor->pVtab;
+  env_t* env = (env_t*) vec_get(table->content,cursor->row);
+  sqlite3_result_int(ctx, env->pid);
+  return SQLITE_OK;
+}
+
 int env_sqlite3_name(sqlite3_vtab_cursor* pCursor, sqlite3_context *ctx) {
   env_cursor_t *cursor = (env_cursor_t*) pCursor;
   env_table_t *table = (env_table_t*) pCursor->pVtab;
-  envvar_t* envvar = (envvar_t*) vec_get(table->content,cursor->row);
-  sqlite3_result_text(ctx, envvar->name, envvar->name_size, SQLITE_STATIC);
+  env_t* env = (env_t*) vec_get(table->content,cursor->row);
+  sqlite3_result_text(ctx, env->name, env->name_len, SQLITE_STATIC);
   return SQLITE_OK;
 }
 
 int env_sqlite3_value(sqlite3_vtab_cursor* pCursor, sqlite3_context *ctx) {
   env_cursor_t *cursor = (env_cursor_t*) pCursor;
   env_table_t *table = (env_table_t *) pCursor->pVtab;
-  envvar_t* envvar = (envvar_t*) vec_get(table->content,cursor->row);
-  sqlite3_result_text(ctx, envvar->value, envvar->value_size, SQLITE_STATIC);
+  env_t* env = (env_t*) vec_get(table->content,cursor->row);
+  sqlite3_result_text(ctx, env->value, env->value_len, SQLITE_STATIC);
   return SQLITE_OK;
 }
 

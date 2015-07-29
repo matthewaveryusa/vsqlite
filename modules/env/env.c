@@ -1,36 +1,38 @@
-#include <env.h>
+#include <modules/env/env.h>
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-void envvar_init(void *v, const char* blob) {
-  envvar_t *envvar = v;
+void env_init(void *v,int pid, const char* blob) {
+  env_t *env = v;
+
+  env->pid = pid;
 
   char* delim=strchr(blob,'=');
   assert(delim != NULL);
-  int size = delim-blob;
-  envvar->name = (char*) malloc(sizeof(char) * (size+1));
-  memcpy(envvar->name,blob,size);
-  envvar->name[size] = '\0';
-  envvar->name_size = size;
+  int len = delim-blob;
+  env->name = (char*) malloc(sizeof(char) * (len+1));
+  memcpy(env->name,blob,len);
+  env->name[len] = '\0';
+  env->name_len = len;
 
   char* end=strchr(delim,'\0');
   assert(end!= NULL);
-  size = end-(delim+1);
-  envvar->value = (char*) malloc(sizeof(char) * (size+1));
-  memcpy(envvar->value,delim+1,size);
-  envvar->value[size] = '\0';
-  envvar->value_size = size;
+  len = end-(delim+1);
+  env->value = (char*) malloc(sizeof(char) * (len+1));
+  memcpy(env->value,delim+1,len);
+  env->value[len] = '\0';
+  env->value_len = len;
 }
 
-void envvar_release(void *v) {
-  envvar_t *envvar = v;
-  free(envvar->name);
-  free(envvar->value);
+void env_release(void *v) {
+  env_t *env = v;
+  free(env->name);
+  free(env->value);
 }
 
-void envvar_print(void *v) {
-  envvar_t *envvar = v;
- printf("%s %s\n", envvar->name, envvar->value);
+void env_print(void *v) {
+  env_t *env = v;
+  printf("%i %s %s\n",env->pid, env->name, env->value);
 }

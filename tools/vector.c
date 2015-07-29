@@ -1,6 +1,6 @@
 // vector.c
 
-#include <vector.h>
+#include <tools/vector.h>
 
 #include <stdlib.h>
 #include <string.h>
