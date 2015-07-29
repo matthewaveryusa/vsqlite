@@ -1,2 +1,2 @@
 all:
-	gcc -I. -Wall main.c vector.c envvar.c sqlite_env.c -lsqlite3
+	gcc -I. -Itools -Imodules/env -Wall main.c modules/env/env.c modules/env/sqlite3_env.c tools/vector.c -lsqlite3

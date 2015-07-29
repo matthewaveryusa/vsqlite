@@ -1,5 +1,5 @@
-#ifndef ENVVAR_H
-#define ENVVAR_H
+#ifndef ENV_H
+#define ENV_H
 
 typedef struct envvar{
   char* name;

@@ -1,5 +1,5 @@
-#ifndef SQLITE_ENV_H
-#define SQLITE_ENV_H
+#ifndef SQLITE3_ENV_H
+#define SQLITE3_ENV_H
 
 #include <sqlite3.h>
 

@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sqlite3.h>
-#include <sqlite_env.h>
+#include <sqlite3_env.h>
 
 static int callback(void *NotUsed, int argc, char **argv, char **azColName){
   int i;

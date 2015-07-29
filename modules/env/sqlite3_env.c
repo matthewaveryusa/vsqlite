@@ -1,6 +1,6 @@
-#include <sqlite_env.h>
+#include <sqlite3_env.h>
 
-#include <envvar.h>
+#include <env.h>
 #include <vector.h>
 #include <sqlite3.h>
 #include <stdlib.h>
