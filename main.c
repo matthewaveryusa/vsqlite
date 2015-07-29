@@ -4,7 +4,7 @@
 #include <sqlite3_env.h>
 
 static int callback(void *NotUsed, int argc, char **argv, char **azColName){
-  int i;
+  int i = 0;
   while(i < argc){
     printf("%s = %s", azColName[i], argv[i] ? argv[i] : "NULL");
     while(++i < argc){

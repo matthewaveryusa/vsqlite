@@ -45,6 +45,7 @@ sqlite3_module env_module = {
 int env_xCreate(sqlite3* db, void *pAux, int argc, const char *const*argv, sqlite3_vtab **ppVTab, char **pzErr){
   static char query[] = "CREATE TABLE env(pid INT, key TEXT, value TEXT)";
   env_table_t *table = (env_table_t*) malloc(sizeof(env_table_t));
+  memset(table,0,sizeof(env_table_t));
   if(!table) {
     return SQLITE_ERROR;
   }
@@ -88,11 +89,7 @@ int env_xFilter(sqlite3_vtab_cursor* pCursor, int idxNum, const char *idxStr, in
   env_table_t *table = (env_table_t*) pCursor->pVtab;
   env_cursor_t *cursor = (env_cursor_t*) pCursor;
 
-  FILE *fp = fopen("/proc/sys/kernel/pid_max","r");
-  if(!fp) { return SQLITE_ERROR; }
-  fseek(fp, 0L, SEEK_END);
-  int max_pid_len = ftell(fp);
-  fclose(fp);
+  int max_pid_len = 20;
   int environ_path_len = sizeof("/proc//environ") + max_pid_len;
   char* environ_path = malloc(environ_path_len);
   if(!environ_path) { return SQLITE_ERROR; }
@@ -108,8 +105,7 @@ int env_xFilter(sqlite3_vtab_cursor* pCursor, int idxNum, const char *idxStr, in
     strcat(environ_path,"/proc/");
     strcat(environ_path,ep->d_name);
     strcat(environ_path,"/environ");
-    fp = fopen(environ_path,"r");
-    free(environ_path);
+    FILE *fp = fopen(environ_path,"r");
     if(!fp) { continue; }
     typedef enum state { KEY, VALUE} state;
     char c;
@@ -154,6 +150,7 @@ int env_xFilter(sqlite3_vtab_cursor* pCursor, int idxNum, const char *idxStr, in
     vec_delete(temp);
     fclose(fp);
   }
+  free(environ_path);
   closedir(dir);
   return SQLITE_OK;
 }
