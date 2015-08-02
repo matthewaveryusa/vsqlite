@@ -59,6 +59,15 @@ void vec_delete(void* v)
   free(pvec);
 }
 
+void* vec_move_and_delete(void* v) {
+ vec_t* pvec = v;
+ void* ret = realloc(pvec->_mem,pvec->_elemsize * pvec->_elems);
+ pvec->_mem = 0;
+ vec_delete(pvec);
+ return ret;
+}
+
+
 void vec_grow(void* v)
 {
   vec_t* pvec = v;

@@ -11,5 +11,5 @@ void vec_push_back(void* v, void* data, unsigned long elemsize);
 void* vec_push_back_uninitialized(void* v, unsigned long elemsize);
 unsigned long vec_length(void* v);
 void vec_copy_item(void* v, void* dest, unsigned long index);
-
+void* vec_move_and_delete(void *v);
 #endif

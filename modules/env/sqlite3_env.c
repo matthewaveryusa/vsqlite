@@ -123,9 +123,8 @@ int env_xFilter(sqlite3_vtab_cursor* pCursor, int idxNum, const char *idxStr, in
             env->name_len = vec_length(temp);
             t = vec_push_back_uninitialized(temp,1);
             *t = '\0';
-            env->name = strdup(vec_get(temp,0));
+            env->name = (char*) vec_move_and_delete(temp);
             s = VALUE;
-            vec_delete(temp);
             temp = vec_new(1,10);
           } else {
             t = vec_push_back_uninitialized(temp,1);
@@ -137,9 +136,8 @@ int env_xFilter(sqlite3_vtab_cursor* pCursor, int idxNum, const char *idxStr, in
             env->value_len = vec_length(temp);
             t = vec_push_back_uninitialized(temp,1);
             *t = '\0';
-            env->value = strdup(vec_get(temp,0));
+            env->value = (char*) vec_move_and_delete(temp);
             s = KEY;
-            vec_delete(temp);
             temp = vec_new(1,10);
           } else {
             t = vec_push_back_uninitialized(temp,1);
