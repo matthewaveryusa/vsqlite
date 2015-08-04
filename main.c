@@ -1,7 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sqlite3.h>
-#include <sqlite3_env.h>
+#include <modules/env/sqlite3_env.h>
+#include <modules/cmdline/sqlite3_cmdline.h>
+#include <modules/exe/sqlite3_exe.h>
 
 static int callback(void *NotUsed, int argc, char **argv, char **azColName){
   int i = 0;
@@ -30,13 +32,37 @@ int main(int argc, char **argv){
 
   rc = sqlite3_create_module(db,"env",&env_module,0);
   if( rc!=SQLITE_OK ){
-    fprintf(stderr,"error registering module with rc %i\n",rc);
+    fprintf(stderr,"error registering 'env' module with rc %i\n",rc);
     return 1;
   }
     
   rc = sqlite3_exec(db, "CREATE VIRTUAL TABLE env USING env", 0, 0, 0);
   if( rc!=SQLITE_OK ){
-    fprintf(stderr,"error creating virtual table with rc %i\n",rc);
+    fprintf(stderr,"error creating virtual table 'env' with rc %i\n",rc);
+    return 1;
+  }
+  
+  rc = sqlite3_create_module(db,"cmdline",&cmdline_module,0);
+  if( rc!=SQLITE_OK ){
+    fprintf(stderr,"error registering 'cmdline' module with rc %i\n",rc);
+    return 1;
+  }
+    
+  rc = sqlite3_exec(db, "CREATE VIRTUAL TABLE cmdline USING cmdline", 0, 0, 0);
+  if( rc!=SQLITE_OK ){
+    fprintf(stderr,"error creating virtual table 'cmdline' with rc %i\n",rc);
+    return 1;
+  }
+  
+  rc = sqlite3_create_module(db,"exe",&exe_module,0);
+  if( rc!=SQLITE_OK ){
+    fprintf(stderr,"error registering 'exe' module with rc %i\n",rc);
+    return 1;
+  }
+    
+  rc = sqlite3_exec(db, "CREATE VIRTUAL TABLE exe USING exe", 0, 0, 0);
+  if( rc!=SQLITE_OK ){
+    fprintf(stderr,"error creating virtual table 'exe' with rc %i\n",rc);
     return 1;
   }
 

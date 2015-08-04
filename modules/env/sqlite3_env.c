@@ -59,6 +59,18 @@ int env_xCreate(sqlite3* db, void *pAux, int argc, const char *const*argv, sqlit
 }
 
 int env_xBestIndex(sqlite3_vtab *pVTab, sqlite3_index_info* index_info){
+  //for now we just index on an exact match with a pid
+  int i;
+  for(i = 0; i < index_info->nConstraint; ++i) {
+    struct sqlite3_index_constraint *c =  &(index_info->aConstraint[i]);
+    if(!c->usable) { continue; }
+    if(c->op == SQLITE_INDEX_CONSTRAINT_EQ && c->iColumn == ENV_PID_COLUMN) {
+      index_info->aConstraintUsage[i].argvIndex = 1;
+      index_info->idxNum = ENV_PID_COLUMN; 
+      index_info->estimatedCost = 1;
+      return SQLITE_OK;
+    }
+  }
   return SQLITE_OK;
 }
 
@@ -89,67 +101,20 @@ int env_xFilter(sqlite3_vtab_cursor* pCursor, int idxNum, const char *idxStr, in
   env_table_t *table = (env_table_t*) pCursor->pVtab;
   env_cursor_t *cursor = (env_cursor_t*) pCursor;
 
-  //length of a 64 bit int in characters
-  int max_pid_len = 20;
-  int environ_path_len = sizeof("/proc//environ") + max_pid_len;
-  char* environ_path = malloc(environ_path_len);
-  if(!environ_path) { return SQLITE_ERROR; }
+  //exact pid match
+  if(idxNum == ENV_PID_COLUMN && argc == 1) {
+    int pid = sqlite3_value_int(argv[0]);
+    envvec_get_pid(table->content,pid);
+    return SQLITE_OK;
+  }
 
   struct dirent *ep;
   DIR *dir = opendir ("/proc");
   if (dir == NULL) { return SQLITE_ERROR; }
   while( (ep = readdir(dir)) ) {
     int pid = atoi(ep->d_name);
-    if(pid == 0) { continue; }
-    assert(strlen(ep->d_name) < environ_path_len);
-    environ_path[0] = '\0';
-    strcat(environ_path,"/proc/");
-    strcat(environ_path,ep->d_name);
-    strcat(environ_path,"/environ");
-    FILE *fp = fopen(environ_path,"r");
-    if(!fp) { continue; }
-    typedef enum state { KEY, VALUE} state;
-    char c;
-    state s = KEY;
-    void * temp = vec_new(1,10);
-    char *t;
-    env_t *env;
-    while ( (c = fgetc(fp)) != EOF) {
-      switch (s) {
-        case KEY:
-          if(c == '=') {
-            env = (env_t*) vec_push_back_uninitialized(table->content,sizeof(env_t));
-            env->pid = pid;
-            env->name_len = vec_length(temp);
-            t = vec_push_back_uninitialized(temp,1);
-            *t = '\0';
-            env->name = (char*) vec_move_and_delete(temp);
-            s = VALUE;
-            temp = vec_new(1,10);
-          } else {
-            t = vec_push_back_uninitialized(temp,1);
-            *t = c;
-          }
-          break;
-        case VALUE:
-          if(c == '\0') {
-            env->value_len = vec_length(temp);
-            t = vec_push_back_uninitialized(temp,1);
-            *t = '\0';
-            env->value = (char*) vec_move_and_delete(temp);
-            s = KEY;
-            temp = vec_new(1,10);
-          } else {
-            t = vec_push_back_uninitialized(temp,1);
-            *t = c;
-          }
-          break;
-      }
-    }
-    vec_delete(temp);
-    fclose(fp);
+    envvec_get_pid(table->content,pid);
   }
-  free(environ_path);
   closedir(dir);
   return SQLITE_OK;
 }

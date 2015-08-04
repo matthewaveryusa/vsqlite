@@ -13,6 +13,10 @@ typedef struct env_cursor {
   int row;
 } env_cursor_t;
 
+#define ENV_PID_COLUMN 0
+#define ENV_KEY_COLUMN 1
+#define ENV_VALUE_COLUMN 2
+
 int env_sqlite3_pid(sqlite3_vtab_cursor* pCursor, sqlite3_context *ctx) ;
 int env_sqlite3_name(sqlite3_vtab_cursor* pCursor, sqlite3_context *ctx) ;
 int env_sqlite3_value(sqlite3_vtab_cursor* pCursor, sqlite3_context *ctx) ;
