@@ -13,6 +13,9 @@ typedef struct exe_cursor {
   int row;
 } exe_cursor_t;
 
+#define EXE_PID_COLUMN 0
+#define EXE_EXE_COLUMN 1
+
 int exe_sqlite3_pid(sqlite3_vtab_cursor* pCursor, sqlite3_context *ctx) ;
 int exe_sqlite3_exe(sqlite3_vtab_cursor* pCursor, sqlite3_context *ctx) ;
 

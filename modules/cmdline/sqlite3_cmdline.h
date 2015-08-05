@@ -13,6 +13,9 @@ typedef struct cmdline_cursor {
   int row;
 } cmdline_cursor_t;
 
+#define CMDLINE_PID_COLUMN 0
+#define CMDLINE_CMDLINE_COLUMN 1
+
 int cmdline_sqlite3_pid(sqlite3_vtab_cursor* pCursor, sqlite3_context *ctx) ;
 int cmdline_sqlite3_cmdline(sqlite3_vtab_cursor* pCursor, sqlite3_context *ctx) ;
 

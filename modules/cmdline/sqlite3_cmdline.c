@@ -58,6 +58,18 @@ int cmdline_xCreate(sqlite3* db, void *pAux, int argc, const char *const*argv, s
 }
 
 int cmdline_xBestIndex(sqlite3_vtab *pVTab, sqlite3_index_info* index_info){
+  //for now we just index on an exact match with a pid
+  int i;
+  for(i = 0; i < index_info->nConstraint; ++i) {
+    struct sqlite3_index_constraint *c =  &(index_info->aConstraint[i]);
+    if(!c->usable) { continue; }
+    if(c->op == SQLITE_INDEX_CONSTRAINT_EQ && c->iColumn == CMDLINE_PID_COLUMN) {
+      index_info->aConstraintUsage[i].argvIndex = 1;
+      index_info->idxNum = CMDLINE_PID_COLUMN; 
+      index_info->estimatedCost = 1;
+      return SQLITE_OK;
+    }
+  }
   return SQLITE_OK;
 }
 
@@ -87,57 +99,21 @@ int cmdline_xClose(sqlite3_vtab_cursor* cursor){
 int cmdline_xFilter(sqlite3_vtab_cursor* pCursor, int idxNum, const char *idxStr, int argc, sqlite3_value **argv){
   cmdline_table_t *table = (cmdline_table_t*) pCursor->pVtab;
   cmdline_cursor_t *cursor = (cmdline_cursor_t*) pCursor;
-
-  //length of a 64 bit int in characters
-  int max_pid_len = 20;
-  int cmdline_path_len = sizeof("/proc//cmdline") + max_pid_len;
-  char* cmdline_path = malloc(cmdline_path_len);
-  if(!cmdline_path) { return SQLITE_ERROR; }
+  
+  //exact pid match
+  if(idxNum == CMDLINE_PID_COLUMN && argc == 1) {
+    int pid = sqlite3_value_int(argv[0]);
+    cmdlinevec_get_pid(table->content,pid);
+    return SQLITE_OK;
+  }
 
   struct dirent *ep;
   DIR *dir = opendir ("/proc");
   if (dir == NULL) { return SQLITE_ERROR; }
   while( (ep = readdir(dir)) ) {
     int pid = atoi(ep->d_name);
-    if(pid == 0) { continue; }
-    assert(strlen(ep->d_name) < cmdline_path_len);
-    cmdline_path[0] = '\0';
-    strcat(cmdline_path,"/proc/");
-    strcat(cmdline_path,ep->d_name);
-    strcat(cmdline_path,"/cmdline");
-    FILE *fp = fopen(cmdline_path,"r");
-    if(!fp) { continue; }
-    char c;
-    char *t;
-    void * temp = vec_new(1,10);
-    int null_count = 0;
-    while ( (c = fgetc(fp)) != EOF) {
-      if(c == '\0') {
-        ++null_count;
-        continue;
-      }
-      if(null_count != 0) { 
-        if(c == '\0') {
-          assert(null_count < 2);
-          ++null_count;
-          continue;
-        } else {
-          assert(null_count == 1);
-          t = vec_push_back_uninitialized(temp,1);
-          *t = ' ';
-          null_count = 0;
-        }
-      }
-      t = vec_push_back_uninitialized(temp,1);
-      *t = c;
-    }
-    cmdline_t *cmdline = (cmdline_t*) vec_push_back_uninitialized(table->content,sizeof(cmdline_t));
-    cmdline->pid = pid;
-    cmdline->cmdline_len = vec_length(temp);
-    cmdline->cmdline = vec_move_and_delete(temp);
-    fclose(fp);
+    cmdlinevec_get_pid(table->content,pid);
   }
-  free(cmdline_path);
   closedir(dir);
   return SQLITE_OK;
 }

@@ -10,4 +10,6 @@ typedef struct exe{
 void exe_release(void *v);
 void exe_print(void *v);
 
+int exevec_get_pid(void* vec, int pid);
+
 #endif

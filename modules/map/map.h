@@ -1,14 +1,15 @@
-#ifndef CMDLINE_H
-#define CMDLINE_H
+#ifndef MAP_H
+#define MAP_H
 
-typedef struct cmdline{
+typedef struct map{
   int pid;
-  char* cmdline;
-  int cmdline_len;
-} cmdline_t;
+  char* map;
+  int map_len;
+} map_t;
 
-void cmdline_init(void *v, int pid, const char* blob);
-void cmdline_release(void *v);
-void cmdline_print(void *v);
+void map_release(void *v);
+void map_print(void *v);
+
+int mapvec_get_pid(void* vec, int pid);
 
 #endif

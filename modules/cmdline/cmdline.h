@@ -10,4 +10,6 @@ typedef struct cmdline{
 void cmdline_release(void *v);
 void cmdline_print(void *v);
 
+int cmdlinevec_get_pid(void* vec, int pid);
+
 #endif

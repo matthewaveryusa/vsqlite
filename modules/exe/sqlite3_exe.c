@@ -12,8 +12,6 @@
 #include <dirent.h>
 #include <sys/types.h>
 
-#include <unistd.h>
-#include <linux/limits.h>
 
 int(*exe_sqlite3_setters[])(sqlite3_vtab_cursor*, sqlite3_context*) = {
   exe_sqlite3_pid,
@@ -61,6 +59,18 @@ int exe_xCreate(sqlite3* db, void *pAux, int argc, const char *const*argv, sqlit
 }
 
 int exe_xBestIndex(sqlite3_vtab *pVTab, sqlite3_index_info* index_info){
+  //for now we just index on an exact match with a pid
+  int i;
+  for(i = 0; i < index_info->nConstraint; ++i) {
+    struct sqlite3_index_constraint *c =  &(index_info->aConstraint[i]);
+    if(!c->usable) { continue; }
+    if(c->op == SQLITE_INDEX_CONSTRAINT_EQ && c->iColumn == EXE_PID_COLUMN) {
+      index_info->aConstraintUsage[i].argvIndex = 1;
+      index_info->idxNum = EXE_PID_COLUMN; 
+      index_info->estimatedCost = 1;
+      return SQLITE_OK;
+    }
+  }
   return SQLITE_OK;
 }
 
@@ -90,34 +100,21 @@ int exe_xClose(sqlite3_vtab_cursor* cursor){
 int exe_xFilter(sqlite3_vtab_cursor* pCursor, int idxNum, const char *idxStr, int argc, sqlite3_value **argv){
   exe_table_t *table = (exe_table_t*) pCursor->pVtab;
   exe_cursor_t *cursor = (exe_cursor_t*) pCursor;
-
-  //length of a 64 bit int in characters
-  int max_pid_len = 20;
-  int exe_path_len = sizeof("/proc//exe") + max_pid_len;
-  char* exe_path = malloc(exe_path_len);
-  if(!exe_path) { return SQLITE_ERROR; }
+  
+  //exact pid match
+  if(idxNum == EXE_PID_COLUMN && argc == 1) {
+    int pid = sqlite3_value_int(argv[0]);
+    exevec_get_pid(table->content,pid);
+    return SQLITE_OK;
+  }
 
   struct dirent *ep;
   DIR *dir = opendir ("/proc");
   if (dir == NULL) { return SQLITE_ERROR; }
   while( (ep = readdir(dir)) ) {
     int pid = atoi(ep->d_name);
-    if(pid == 0) { continue; }
-    assert(strlen(ep->d_name) < exe_path_len);
-    exe_path[0] = '\0';
-    strcat(exe_path,"/proc/");
-    strcat(exe_path,ep->d_name);
-    strcat(exe_path,"/exe");
-    char temp[PATH_MAX];
-    temp[0] = '\0';
-    int path_len = readlink(exe_path,temp,sizeof(temp)-1);
-    if(path_len < 0) { continue; }
-    exe_t *exe = (exe_t*) vec_push_back_uninitialized(table->content,sizeof(exe_t));
-    exe->pid = pid;
-    exe->exe_len = path_len;
-    exe->exe = strdup(temp);
+    exevec_get_pid(table->content,pid);
   }
-  free(exe_path);
   closedir(dir);
   return SQLITE_OK;
 }

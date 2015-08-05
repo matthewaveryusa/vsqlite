@@ -13,12 +13,10 @@ void env_release(void *v) {
 }
 
 int envvec_get_pid(void* vec, int pid) {
-  //length of a 64 bit int in characters
   int count = 0;
   if(pid == 0) { return count; }
   static const int max_pid_len = 20;
   char environ_path[sizeof("/proc//environ") + 20];
-  if(!environ_path) { return -1; }
   snprintf(environ_path, sizeof(environ_path),"/proc/%i/environ",pid);
   FILE *fp = fopen(environ_path,"r");
   if(!fp) { return count; }
