@@ -1,4 +1,4 @@
-// vector.c
+/*vector.c*/
 
 #include <tools/vector.h>
 
@@ -6,61 +6,59 @@
 #include <string.h>
 #include <assert.h>
 
-typedef struct vec
+struct vec
 {
   unsigned char* _mem;
   unsigned long _elems;
   unsigned long _elemsize;
-  unsigned long _capelems;
-  unsigned long _reserve;
-} vec_t;
+  unsigned long _capacity;
+};
 
-void* vec_get(void* v, unsigned long index)
+void* vec_get(vec_t* pvec, unsigned long index)
 {
-  vec_t* pvec = v;
   assert(index < pvec->_elems);
   return (void*)(pvec->_mem + (index * pvec->_elemsize));
 }
 
 
-void* vec_new(unsigned long elemsize, unsigned long initial_capacity)
+vec_t* vec_new(unsigned long elemsize, unsigned long initial_capacity)
 {
   vec_t* pvec = (vec_t*)malloc(sizeof(vec_t));
-  pvec->_reserve = initial_capacity;
-  pvec->_capelems = initial_capacity;
+  pvec->_capacity = initial_capacity;
   pvec->_elemsize = elemsize;
   pvec->_elems = 0;
-  pvec->_mem = (unsigned char*)malloc(pvec->_capelems * pvec->_elemsize);
+  pvec->_mem = (unsigned char*)malloc(pvec->_capacity * pvec->_elemsize);
   return pvec;
 }
 
-void vec_delete_elems(void* v, void (*elem_free)(void *))
+void vec_delete_elems(vec_t* pvec, void (*elem_free)(void *))
 {
-  vec_t* pvec = v;
   int i;
   for(i = 0; i < pvec->_elems; ++i) {
     elem_free(vec_get(pvec,i));
   }
 }
 
-void vec_foreach(void* v, void (*func)(void *))
+void vec_foreach(vec_t* pvec, void (*func)(void *elem, void* user_data), void* user_data)
 {
-  vec_t* pvec = v;
   int i;
   for(i = 0; i < pvec->_elems; ++i) {
-    func(vec_get(pvec,i));
+    func(vec_get(pvec,i),user_data);
   }
 }
 
-void vec_delete(void* v)
+void vec_for_item(vec_t* pvec,unsigned int index, void (*func)(void *elem, void* user_data),void* user_data)
 {
-  vec_t* pvec = v;
+    func(vec_get(pvec,index),user_data);
+}
+
+void vec_delete(vec_t* pvec)
+{
   free(pvec->_mem);
   free(pvec);
 }
 
-void* vec_move_and_delete(void* v) {
- vec_t* pvec = v;
+void* vec_move_and_delete(vec_t* pvec) {
  void* ret = realloc(pvec->_mem,pvec->_elemsize * pvec->_elems);
  pvec->_mem = 0;
  vec_delete(pvec);
@@ -68,28 +66,22 @@ void* vec_move_and_delete(void* v) {
 }
 
 
-void vec_grow(void* v)
+void vec_grow(vec_t* pvec)
 {
-  vec_t* pvec = v;
-  unsigned char* mem = (unsigned char*)malloc((pvec->_capelems + pvec->_reserve) * pvec->_elemsize);
-  memcpy(mem, pvec->_mem, pvec->_elems * pvec->_elemsize);
-  free(pvec->_mem);
-  pvec->_mem = mem;
-  pvec->_capelems += pvec->_reserve;
+  pvec->_mem = (unsigned char*)realloc(pvec->_mem,(pvec->_capacity * 2) * pvec->_elemsize);
+  pvec->_capacity *=2;
 }
 
-void vec_push_back(void* v, void* data, unsigned long elemsize)
+void vec_push_back(vec_t* pvec, void* data, unsigned long elemsize)
 {
-  vec_t* pvec = v;
   assert(elemsize == pvec->_elemsize);
-  memcpy(vec_push_back_uninitialized(v,elemsize), (unsigned char*)data, elemsize);
+  memcpy(vec_push_back_uninitialized(pvec,elemsize), (unsigned char*)data, elemsize);
 }
 
-void* vec_push_back_uninitialized(void* v, unsigned long elemsize)
+void* vec_push_back_uninitialized(vec_t* pvec, unsigned long elemsize)
 {
-  vec_t* pvec = v;
   assert(elemsize == pvec->_elemsize);
-  if (pvec->_elems == pvec->_capelems) {
+  if (pvec->_elems == pvec->_capacity) {
     vec_grow(pvec);
   }
   pvec->_elems++;    
@@ -98,15 +90,13 @@ void* vec_push_back_uninitialized(void* v, unsigned long elemsize)
 
 
 
-unsigned long vec_length(void* v)
+unsigned long vec_length(vec_t* pvec)
 {
-  vec_t* pvec = v;
   return pvec->_elems;
 }
 
 
-void vec_copy_item(void* v, void* dest, unsigned long index)
+void vec_copy_item(vec_t* pvec, void* dest, unsigned long index)
 {
-  vec_t* pvec = v;
   memcpy(dest, vec_get(pvec, index), pvec->_elemsize);
 }
